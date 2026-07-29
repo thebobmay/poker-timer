@@ -2,9 +2,12 @@
 // realtime sync: clients send Commands, the engine mutates state, and the full
 // state (+ audio cues) is broadcast to everyone. One process, one port.
 
+import { exec } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { networkInterfaces } from 'node:os';
 import path from 'node:path';
+import { isSea, getAsset } from 'node:sea';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -20,15 +23,30 @@ import {
 import { Engine } from './engine.js';
 import { JsonFileStore } from './persistence.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+/** True when running as a packaged single-executable (poker-timer.exe). */
+const packaged = isSea();
+// Base dir: next to the .exe when packaged, else the server source dir.
+const __dirname = packaged ? path.dirname(process.execPath) : path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 3000);
 const isProd = process.env.NODE_ENV === 'production';
+const serveClient = packaged || isProd;
 /** How often to write a recovery snapshot while running (default 2 min). */
 const SNAPSHOT_INTERVAL_MS = Number(process.env.SNAPSHOT_INTERVAL_MS ?? 120_000);
 /** How often to persist the live clock to db.json (bounds clock loss on a crash). */
 const CHECKPOINT_INTERVAL_MS = Number(process.env.CHECKPOINT_INTERVAL_MS ?? 15_000);
-const publicDir = path.resolve(__dirname, '../public');
-const dataFile = path.resolve(__dirname, '../data/db.json');
+// Writable data lives next to the .exe when packaged so it survives across runs.
+const dataDir = packaged ? path.join(__dirname, 'poker-timer-data') : path.resolve(__dirname, '../data');
+const dataFile = path.join(dataDir, 'db.json');
+const publicIndex = path.resolve(__dirname, '../public/index.html');
+
+/** The single-file client HTML — embedded as a SEA asset when packaged, else on disk. */
+let cachedHtml: string | null = null;
+function indexHtml(): string {
+  if (cachedHtml == null) {
+    cachedHtml = packaged ? (getAsset('index.html', 'utf8') as string) : readFileSync(publicIndex, 'utf8');
+  }
+  return cachedHtml;
+}
 
 const app = express();
 const httpServer = createServer(app);
@@ -98,11 +116,10 @@ app.post('/api/restore', async (req, res) => {
   }
 });
 
-if (isProd) {
-  app.use(express.static(publicDir));
-  // SPA fallback: any non-API GET returns index.html.
+if (serveClient) {
+  // Single-file client: serve the one embedded HTML for any non-API/ws GET.
   app.get(/^(?!\/(api|ws)).*/, (_req, res) => {
-    res.sendFile(path.join(publicDir, 'index.html'));
+    res.type('html').send(indexHtml());
   });
 }
 
@@ -121,12 +138,15 @@ engine
     setInterval(() => engine.snapshotNow(), SNAPSHOT_INTERVAL_MS);
     setInterval(() => engine.checkpoint(), CHECKPOINT_INTERVAL_MS);
     httpServer.listen(PORT, () => {
-      console.log(`\n  Bob Poker Timer server running${isProd ? '' : ' (dev)'}  ·  snapshots every ${Math.round(SNAPSHOT_INTERVAL_MS / 1000)}s\n`);
+      console.log(`\n  Bob Poker Timer${packaged ? ' (standalone)' : isProd ? '' : ' (dev)'}  ·  snapshots every ${Math.round(SNAPSHOT_INTERVAL_MS / 1000)}s`);
+      if (packaged) console.log(`  Data saved to: ${dataDir}`);
+      console.log('');
       for (const addr of lanAddresses()) {
         console.log(`    Display:  http://${addr}:${PORT}/`);
         console.log(`    Control:  http://${addr}:${PORT}/control`);
       }
-      console.log('');
+      console.log('\n  Close this window to stop the timer.\n');
+      if (packaged) openBrowser(`http://localhost:${PORT}/`);
     });
   })
   .catch((err) => {
@@ -143,4 +163,14 @@ function lanAddresses(): string[] {
     }
   }
   return out;
+}
+
+function openBrowser(url: string): void {
+  try {
+    if (process.platform === 'win32') exec(`start "" "${url}"`);
+    else if (process.platform === 'darwin') exec(`open "${url}"`);
+    else exec(`xdg-open "${url}"`);
+  } catch {
+    /* best-effort: user can open the URL manually */
+  }
 }

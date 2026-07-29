@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "description": "Poker tournament clock + management app. Laptop drives a TV over HDMI and hosts a phone remote over a hotspot LAN.",
   "workspaces": [
     "shared",
@@ -16,14 +17,19 @@
     "build": "vite build --config client/vite.config.ts",
     "start": "npm run build && cross-env NODE_ENV=production tsx server/src/index.ts",
     "typecheck": "tsc -p shared/tsconfig.json && tsc -p server/tsconfig.json && tsc -p client/tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bundle:server": "esbuild server/src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=dist/server.cjs --external:bufferutil --external:utf-8-validate",
+    "build:exe": "node scripts/build-exe.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
     "cross-env": "^7.0.3",
+    "esbuild": "^0.28.1",
+    "postject": "^1.0.0-alpha.6",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^2.1.8"
   },
   "overrides": {

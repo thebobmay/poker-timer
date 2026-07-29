@@ -1,5 +1,6 @@
 node_modules/
 dist/
+sea-prep.blob
 server/public/
 server/data/db.json
 server/data/backups/

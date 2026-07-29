@@ -68,6 +68,11 @@ Laptop ──HDMI──> TV                 Phone (on same hotspot LAN)
   `/api` and `/ws` to the Node server.
 - **Prod (event):** `npm run build` bundles the client into `server/public`; `npm start` runs the
   Node server, serving the static bundle **and** the WebSocket on one port. One command to launch.
+- **Standalone exe:** `npm run build:exe` → `dist/poker-timer.exe` (no Node needed). Pipeline: Vite
+  builds the client as a **single inlined `index.html`** (`vite-plugin-singlefile`) → esbuild bundles
+  the server to one CJS → Node **SEA** embeds both into a copied `node.exe` (via `postject`). At
+  runtime `isSea()` switches paths: data → `poker-timer-data/` next to the exe, HTML → SEA asset,
+  and it auto-opens the browser. See `scripts/build-exe.mjs`, `sea-config.json`.
 
 ## 4. Clock model (keeps TV + phone perfectly in sync)
 

@@ -29,6 +29,28 @@ sync. The console prints the URLs, including your LAN address.
   TV via HDMI.
 - Click **🔊 Enable sound** once so the "Blinds up" / break announcements can play.
 
+## Standalone executable (no Node.js needed)
+
+To run the timer on the event laptop **without installing Node.js**, build a single self-contained
+`.exe` (it bundles the Node runtime + the whole app):
+
+```bash
+npm install      # once, on a machine that has Node
+npm run build:exe
+```
+
+This produces **`dist/poker-timer.exe`** (Windows). Copy that one file to a **writable folder**
+(e.g. the Desktop) on the event laptop and double-click it:
+
+- A console window opens showing the URLs; the display opens automatically in your browser.
+- It saves data to a **`poker-timer-data/`** folder created next to the exe (so keep the exe somewhere
+  writable — not inside `Program Files`).
+- Close the console window to stop the timer.
+- First launch may show a Windows SmartScreen prompt (the exe is unsigned) — choose *More info →
+  Run anyway*.
+
+Change the port with an env var if needed: `set PORT=4000 && poker-timer.exe`.
+
 ### Connect your phone (no venue WiFi needed)
 
 1. Turn on your **phone's hotspot** and connect the **laptop** to it (the laptop keeps driving the
@@ -68,6 +90,7 @@ players, prize pool, blinds, prizes, and seating. Change the cadence with `SNAPS
 | `npm run dev` | Client + server with hot reload |
 | `npm run build` | Build the client into `server/public` |
 | `npm start` | Build + run the production server on port 3000 |
+| `npm run build:exe` | Build the standalone `dist/poker-timer.exe` (no Node needed to run) |
 | `npm run typecheck` | Type-check all packages |
 | `npm test` | Run the domain unit tests |
 
