@@ -1,0 +1,32 @@
+{
+  "name": "bob-poker-timer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Poker tournament clock + management app. Laptop drives a TV over HDMI and hosts a phone remote over a hotspot LAN.",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "cross-env NODE_ENV=development tsx watch server/src/index.ts",
+    "dev:client": "vite --config client/vite.config.ts",
+    "build": "vite build --config client/vite.config.ts",
+    "start": "npm run build && cross-env NODE_ENV=production tsx server/src/index.ts",
+    "typecheck": "tsc -p shared/tsconfig.json && tsc -p server/tsconfig.json && tsc -p client/tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "cross-env": "^7.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8"
+  },
+  "overrides": {
+    "vite": "^6.0.5"
+  }
+}
