@@ -71,8 +71,18 @@ Change the port with an env var if needed: `set PORT=4000 && poker-timer.exe`.
 
    The rule is **removable** — close the port again after the event with
    `scripts\remove-firewall.ps1` (admin). Nothing is opened permanently unless you leave it.
-4. Open the address on the phone. It stays in sync with the TV automatically — pause/resume, edit
+4. **Turn OFF any VPN on the phone.** A VPN on the phone routes *all* its traffic through the tunnel —
+   including requests to the laptop's local `192.168.x.x` address — so the control page will never
+   load while it's on. (This is a per-device thing: a VPN on the *phone* blocks it regardless of the
+   laptop's firewall/network.)
+5. Open the address on the phone. It stays in sync with the TV automatically — pause/resume, edit
    time, manage players, prizes, and seating all from your hand.
+
+> **Troubleshooting "the control page won't load on the phone":** in order of likelihood —
+> (1) a **VPN on the phone** (turn it off), (2) you typed the URL without `http://` (Chrome/Samsung
+> Internet then searches or forces https), (3) the Windows Firewall rule wasn't added on the laptop
+> (see below), (4) the phone isn't on the same hotspot/network. The laptop server itself listens on
+> all interfaces, so it's almost never the server.
 
 ## Using it
 

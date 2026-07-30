@@ -190,6 +190,9 @@ Open the **Display on the laptop** and the **Control on the phone** at the same 
   in an **Administrator** PowerShell run `scripts/allow-firewall.ps1` (or the `New-NetFirewallRule`
   one-liner in the README). A hotspot is a *Public* network and Windows blocks inbound there by
   default — this is the usual reason "works on home WiFi, fails on hotspot."
+- [ ] **Turn OFF any VPN on the phone.** A phone VPN tunnels *all* traffic — including requests to the
+  laptop's local `192.168.x.x` — so the control page won't load until it's off. (Client-side, not the
+  laptop: it blocks regardless of the laptop's firewall/network.)
 - [ ] With **no internet**, start the phone **hotspot**, connect the **laptop** to it.
 - [ ] From the Display, **📱 Phone** shows a `http://192.168.x.x:3000/control` URL.
 - [ ] Type that URL on the phone **with `http://`** → Control loads and syncs. (Zero venue WiFi.)
@@ -239,6 +242,7 @@ Run a compressed mock tournament (use 1–2 minute levels so it's quick):
 - [ ] `npm start` running; Display fullscreen on the TV.
 - [ ] **Enable sound** clicked; volume set; test one announcement.
 - [ ] **Firewall rule added** (`scripts/allow-firewall.ps1` as admin) so the phone can reach the laptop.
+- [ ] **VPN OFF on the phone** (it tunnels local traffic and blocks the control page).
 - [ ] Phone on the same hotspot; Control URL bookmarked and working.
 - [ ] Blind structure, prize scheme, and stakes entered and **saved**.
 - [ ] Players/seating set.
