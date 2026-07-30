@@ -186,10 +186,18 @@ Open the **Display on the laptop** and the **Control on the phone** at the same 
 
 ## 11. Networking at the venue (P0 — the offline story)
 
+- [ ] **Allow the port through Windows Firewall on the event laptop** (one-time, REQUIRED for hotspot):
+  in an **Administrator** PowerShell run `scripts/allow-firewall.ps1` (or the `New-NetFirewallRule`
+  one-liner in the README). A hotspot is a *Public* network and Windows blocks inbound there by
+  default — this is the usual reason "works on home WiFi, fails on hotspot."
 - [ ] With **no internet**, start the phone **hotspot**, connect the **laptop** to it.
 - [ ] From the Display, **📱 Phone** shows a `http://192.168.x.x:3000/control` URL.
-- [ ] Type that URL on the phone → Control loads and syncs. (Confirms the LAN path works with zero venue WiFi.)
+- [ ] Type that URL on the phone **with `http://`** → Control loads and syncs. (Zero venue WiFi.)
 - [ ] Reconnect after the phone locks/sleeps → resyncs.
+- [ ] If it still fails: confirm the phone shows the *hotspot* 192.168.x.x address (not a Hyper-V
+  `172.x` or a `169.254.x` one), and as a firewall check temporarily
+  `Set-NetFirewallProfile -Profile Public -Enabled $false` (admin) — if it connects, keep the allow
+  rule and re-enable the firewall.
 
 ---
 
@@ -230,6 +238,7 @@ Run a compressed mock tournament (use 1–2 minute levels so it's quick):
 - [ ] HDMI to TV works; resolution correct; overscan OK.
 - [ ] `npm start` running; Display fullscreen on the TV.
 - [ ] **Enable sound** clicked; volume set; test one announcement.
+- [ ] **Firewall rule added** (`scripts/allow-firewall.ps1` as admin) so the phone can reach the laptop.
 - [ ] Phone on the same hotspot; Control URL bookmarked and working.
 - [ ] Blind structure, prize scheme, and stakes entered and **saved**.
 - [ ] Players/seating set.

@@ -56,9 +56,19 @@ Change the port with an env var if needed: `set PORT=4000 && poker-timer.exe`.
 1. Turn on your **phone's hotspot** and connect the **laptop** to it (the laptop keeps driving the
    TV over HDMI). Alternatively use Windows **Mobile Hotspot** and join it from the phone.
 2. On the laptop display, click **📱 Phone** — it shows the address to type, e.g.
-   `http://192.168.x.x:3000/control`.
-3. Open that on the phone. It stays in sync with the TV automatically — pause/resume, edit time,
-   manage players, prizes, and seating all from your hand.
+   `http://192.168.x.x:3000/control` (type the `http://` explicitly on the phone).
+3. **Allow it through Windows Firewall (one-time, required).** A phone hotspot is a *Public* network,
+   and Windows blocks incoming connections on Public networks by default — so the phone can't reach
+   the laptop until you allow the port. In an **Administrator** PowerShell on the laptop:
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "Bob Poker Timer" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3000 -Profile Any
+   ```
+
+   (Or run `scripts/allow-firewall.ps1` as admin.) This is the usual reason the control page works on
+   your home WiFi — where you'd already allowed it on the *Private* profile — but not over a hotspot.
+4. Open the address on the phone. It stays in sync with the TV automatically — pause/resume, edit
+   time, manage players, prizes, and seating all from your hand.
 
 ## Using it
 
