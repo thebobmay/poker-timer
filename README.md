@@ -57,16 +57,20 @@ Change the port with an env var if needed: `set PORT=4000 && poker-timer.exe`.
    TV over HDMI). Alternatively use Windows **Mobile Hotspot** and join it from the phone.
 2. On the laptop display, click **📱 Phone** — it shows the address to type, e.g.
    `http://192.168.x.x:3000/control` (type the `http://` explicitly on the phone).
-3. **Allow it through Windows Firewall (one-time, required).** A phone hotspot is a *Public* network,
-   and Windows blocks incoming connections on Public networks by default — so the phone can't reach
-   the laptop until you allow the port. In an **Administrator** PowerShell on the laptop:
+3. **Allow it through Windows Firewall.** A phone hotspot is a *Public* network, and Windows blocks
+   incoming connections on Public networks by default — so the phone can't reach the laptop until you
+   allow the port. (This is why it works on your home Wi‑Fi, which is *Private* and already allowed,
+   but not over a hotspot.) In an **Administrator** PowerShell on the laptop:
 
    ```powershell
-   New-NetFirewallRule -DisplayName "Bob Poker Timer" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3000 -Profile Any
+   # Scoped: only on Public networks, only port 3000 — home/Private Wi-Fi stays closed.
+   powershell -ExecutionPolicy Bypass -File scripts\allow-firewall.ps1
+   # Optionally restrict to just the hotspot's device range:
+   #   ...\allow-firewall.ps1 -Subnet 192.168.x.0/24
    ```
 
-   (Or run `scripts/allow-firewall.ps1` as admin.) This is the usual reason the control page works on
-   your home WiFi — where you'd already allowed it on the *Private* profile — but not over a hotspot.
+   The rule is **removable** — close the port again after the event with
+   `scripts\remove-firewall.ps1` (admin). Nothing is opened permanently unless you leave it.
 4. Open the address on the phone. It stays in sync with the TV automatically — pause/resume, edit
    time, manage players, prizes, and seating all from your hand.
 
