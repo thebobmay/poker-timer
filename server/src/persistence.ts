@@ -3,7 +3,7 @@
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import { defaultDB, type DB } from '@poker/shared';
+import { defaultDB, type ArchivedTournament, type DB } from '@poker/shared';
 
 export interface SnapshotInfo {
   file: string;
@@ -19,6 +19,10 @@ export interface Store {
   listSnapshots(): Promise<SnapshotInfo[]>;
   /** Read a snapshot by file name (validated against the backups dir). */
   readSnapshot(file: string): Promise<DB>;
+  /** Append a completed tournament to the cold archive (written once, on End). */
+  archive(record: ArchivedTournament): Promise<void>;
+  /** Read the cold archive of completed tournaments (no in-app viewer — for tools/future). */
+  readArchive(): Promise<ArchivedTournament[]>;
 }
 
 /** How many rotating snapshots to keep in server/data/backups/. */
@@ -26,8 +30,37 @@ const MAX_BACKUPS = 60;
 
 export class JsonFileStore implements Store {
   private queue: Promise<void> = Promise.resolve();
+  private archiveQueue: Promise<void> = Promise.resolve();
 
   constructor(private readonly filePath: string) {}
+
+  private archivePath(): string {
+    return path.join(path.dirname(this.filePath), 'archive.json');
+  }
+
+  /** Append-only cold store: completed tournaments, separate from the hot db.json. */
+  archive(record: ArchivedTournament): Promise<void> {
+    this.archiveQueue = this.archiveQueue.then(async () => {
+      const list = await this.readArchive();
+      list.push(record);
+      const p = this.archivePath();
+      await fs.mkdir(path.dirname(p), { recursive: true });
+      const tmp = `${p}.tmp`;
+      await fs.writeFile(tmp, JSON.stringify(list, null, 2), 'utf8');
+      await fs.rename(tmp, p);
+    });
+    return this.archiveQueue;
+  }
+
+  async readArchive(): Promise<ArchivedTournament[]> {
+    try {
+      const raw = await fs.readFile(this.archivePath(), 'utf8');
+      const parsed = JSON.parse(raw) as ArchivedTournament[];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
 
   async load(): Promise<DB> {
     try {

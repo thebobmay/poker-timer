@@ -4,6 +4,8 @@
 
 import {
   applyMoves,
+  computePayouts,
+  defaultFormat,
   defaultStakes,
   deriveClock,
   initialClock,
@@ -11,18 +13,23 @@ import {
   mergeTables,
   newId,
   newTournament,
+  prizePool,
   randomizeSeating,
   rebalanceSeating,
   rebuyPeriodOpen,
   removeFromTables,
+  type ArchivedTournament,
   type AudioCue,
   type BlindStructure,
   type Command,
   type DB,
+  type Format,
   type Level,
   type PrizeStructure,
   type Tournament,
   type TournamentPlayer,
+  type TournamentSetup,
+  type TournamentSummary,
 } from '@poker/shared';
 import type { Store } from './persistence.js';
 
@@ -77,6 +84,12 @@ export class Engine {
     if (!this.db.settings) this.db.settings = { stakes: { ...t.stakes } };
     if (!this.db.settings.stakes) this.db.settings.stakes = { ...t.stakes };
     this.fillStakeDefaults(this.db.settings.stakes);
+    // Tournament-object upgrade: lifecycle + format + setups collection.
+    if (t.status !== 'setup' && t.status !== 'running' && t.status !== 'complete') {
+      t.status = t.players.length > 0 || t.clock.running ? 'running' : 'setup';
+    }
+    if (!t.format) t.format = defaultFormat();
+    if (!Array.isArray(this.db.tournamentSetups)) this.db.tournamentSetups = [];
   }
 
   private fillStakeDefaults(s: Tournament['stakes']): void {
@@ -519,12 +532,89 @@ export class Engine {
         break;
       case 'tournament/reset': {
         const prev = this.tournament;
-        const fresh = newTournament(prev.name, this.db.settings.stakes); // seed from saved defaults
+        const fresh = newTournament(prev.name, this.db.settings.stakes, prev.format);
         fresh.blindStructureId = prev.blindStructureId;
         fresh.prizeStructureId = prev.prizeStructureId;
         fresh.seating = { maxPerTable: prev.seating.maxPerTable, tables: [] };
         this.db.tournament = fresh;
         this.db.tournament.clock = initialClock(this.activeLevels()[0]);
+        break;
+      }
+
+      // Tournament lifecycle + format -----------------------------------
+      case 'tournament/createNew': {
+        // Protect data: archive the current event if it's real and not yet archived.
+        if (!this.tournament.endedAt) this.archiveCurrent();
+        const setup = cmd.setupId ? this.db.tournamentSetups.find((s) => s.id === cmd.setupId) : undefined;
+        const fresh = newTournament(setup?.name ?? 'New Tournament', this.db.settings.stakes, setup?.format ?? this.tournament.format);
+        if (setup) {
+          fresh.blindStructureId = setup.blindStructureId;
+          fresh.prizeStructureId = setup.prizeStructureId;
+          fresh.stakes = { ...setup.stakes };
+          fresh.seating = { maxPerTable: setup.maxPerTable, tables: [] };
+          fresh.setupId = setup.id;
+        } else {
+          // Blank: carry the current structure/prize selections + seating cap.
+          fresh.blindStructureId = this.tournament.blindStructureId;
+          fresh.prizeStructureId = this.tournament.prizeStructureId;
+          fresh.seating = { maxPerTable: this.tournament.seating.maxPerTable, tables: [] };
+        }
+        this.db.tournament = fresh;
+        this.db.tournament.clock = initialClock(this.activeLevels()[0]);
+        break;
+      }
+      case 'tournament/start':
+        if (this.tournament.status === 'setup') {
+          this.tournament.status = 'running';
+          this.tournament.startedAt = this.now();
+        }
+        break;
+      case 'tournament/end':
+        if (this.tournament.status !== 'complete') {
+          if (this.tournament.clock.running) this.reanchor({ running: false });
+          this.tournament.status = 'complete';
+          this.tournament.endedAt = this.now();
+          this.archiveCurrent();
+        }
+        break;
+      case 'tournament/setFormat':
+        this.tournament.format = this.cleanFormat(cmd.format);
+        break;
+
+      // Saved tournament setups (templates) -----------------------------
+      case 'setup/save': {
+        const s = cmd.setup;
+        const stakes = { ...s.stakes };
+        this.fillStakeDefaults(stakes);
+        const clean: TournamentSetup = {
+          id: s.id || newId(),
+          name: String(s.name ?? 'Setup').trim() || 'Setup',
+          format: this.cleanFormat(s.format),
+          blindStructureId: s.blindStructureId ?? null,
+          prizeStructureId: s.prizeStructureId ?? null,
+          stakes,
+          maxPerTable: Math.max(2, Math.trunc(num(s.maxPerTable, 9))),
+        };
+        const idx = this.db.tournamentSetups.findIndex((x) => x.id === clean.id);
+        if (idx >= 0) this.db.tournamentSetups[idx] = clean;
+        else this.db.tournamentSetups.push(clean);
+        break;
+      }
+      case 'setup/delete':
+        this.db.tournamentSetups = this.db.tournamentSetups.filter((s) => s.id !== cmd.id);
+        break;
+      case 'setup/apply': {
+        const setup = this.db.tournamentSetups.find((s) => s.id === cmd.id);
+        if (setup) {
+          const t = this.tournament;
+          t.format = { ...setup.format };
+          t.blindStructureId = setup.blindStructureId;
+          t.prizeStructureId = setup.prizeStructureId;
+          t.stakes = { ...setup.stakes };
+          t.setupId = setup.id;
+          t.seating.maxPerTable = setup.maxPerTable;
+          t.clock = initialClock(this.activeLevels()[0]);
+        }
         break;
       }
 
@@ -541,6 +631,39 @@ export class Engine {
   }
 
   // ---- mutation helpers --------------------------------------------------
+
+  private cleanFormat(f: Format | undefined): Format {
+    return {
+      rebuys: f?.rebuys === 'freezeout' ? 'freezeout' : 'rebuy',
+      bounty: f?.bounty === 'traditional' || f?.bounty === 'mystery' ? f.bounty : 'none',
+    };
+  }
+
+  /** Append the current tournament to the cold archive (only if it's a real event). */
+  private archiveCurrent(): void {
+    const t = this.tournament;
+    const isReal = t.status === 'running' || t.status === 'complete' || t.players.length > 0 || (t.anonymousCount != null && t.anonEntries > 0);
+    if (!isReal) return;
+    if (!t.endedAt) t.endedAt = this.now();
+    const record: ArchivedTournament = { summary: this.buildSummary(t), tournament: structuredClone(t) };
+    this.store.archive(record).catch((err) => console.error('[store] archive failed:', err));
+  }
+
+  private buildSummary(t: Tournament): TournamentSummary {
+    const active = t.players.filter((p) => p.status === 'active');
+    const entries = t.anonymousCount != null ? t.anonEntries : t.players.length;
+    const prize = this.db.prizeStructures.find((p) => p.id === t.prizeStructureId) ?? null;
+    const pool = prizePool(t);
+    return {
+      name: t.name,
+      endedAt: t.endedAt ?? this.now(),
+      format: t.format,
+      entries,
+      prizePool: pool,
+      payouts: computePayouts(prize, pool),
+      winner: t.anonymousCount == null && active.length === 1 ? active[0].name : null,
+    };
+  }
 
   /** Add a named player. Returns a notice (e.g. blank name) or null. */
   private addPlayer(name: string, savedPlayerId?: string): string | null {

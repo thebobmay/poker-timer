@@ -62,6 +62,21 @@ export interface Stakes {
   maxRebuys: number;
 }
 
+/**
+ * Tournament format. The two axes are ORTHOGONAL and combine freely — e.g. a
+ * freezeout bounty, or a rebuy mystery bounty. (Behaviors land in a later branch;
+ * this is the stored shape.)
+ */
+export interface Format {
+  /** Whether players can re-enter. */
+  rebuys: 'freezeout' | 'rebuy';
+  /** Bounty style layered on top of the rebuy policy. */
+  bounty: 'none' | 'traditional' | 'mystery';
+}
+
+/** Lifecycle of a live tournament instance. */
+export type TournamentStatus = 'setup' | 'running' | 'complete';
+
 export type PlayerStatus = 'active' | 'out';
 
 /**
@@ -122,10 +137,19 @@ export interface ClockState {
   anchorEpochMs: number;
 }
 
-/** The live tournament. Addressable by id so a `tournaments` collection can be added later. */
+/** The live tournament instance. Addressable by id; part of a growing collection. */
 export interface Tournament {
   id: string;
   name: string;
+  /** Lifecycle: setup → running → complete. */
+  status: TournamentStatus;
+  /** Format (rebuy policy × bounty style). */
+  format: Format;
+  /** The saved setup this instance was created from, if any. */
+  setupId?: string;
+  /** Epoch ms when the tournament went live / ended. */
+  startedAt?: number;
+  endedAt?: number;
   blindStructureId: string | null;
   prizeStructureId: string | null;
   /** Buy-in / rebuy / add-on amounts (cash + chips). */
@@ -141,12 +165,44 @@ export interface Tournament {
   seating: SeatingState;
 }
 
+/**
+ * A reusable, named tournament setup (template). Load one to configure a night in
+ * one tap — bundles the format + structure + prize + stakes + seating cap.
+ */
+export interface TournamentSetup {
+  id: string;
+  name: string;
+  format: Format;
+  blindStructureId: string | null;
+  prizeStructureId: string | null;
+  stakes: Stakes;
+  maxPerTable: number;
+}
+
+/** A short, readable summary of a completed tournament (for archive/stats). */
+export interface TournamentSummary {
+  name: string;
+  endedAt: number;
+  format: Format;
+  entries: number;
+  prizePool: number;
+  payouts: number[];
+  /** Last player standing, if a single winner remained. */
+  winner: string | null;
+}
+
+/** A completed tournament written to the cold archive on "End". */
+export interface ArchivedTournament {
+  summary: TournamentSummary;
+  tournament: Tournament;
+}
+
 /** App-level settings that persist across sessions and seed new tournaments. */
 export interface AppSettings {
   stakes: Stakes;
 }
 
-/** The complete persisted store. */
+/** The hot store: current tournament + reusable config. Completed events live in a separate cold archive. */
 export interface DB {
   version: number;
   /** Remembered defaults (buy-in/rebuy/add-on cash + chips), independent of any tournament. */
@@ -154,6 +210,8 @@ export interface DB {
   savedPlayers: SavedPlayer[];
   blindStructures: BlindStructure[];
   prizeStructures: PrizeStructure[];
-  /** The single active tournament (v1). Structured to become a collection later. */
+  /** Reusable tournament setups (templates). */
+  tournamentSetups: TournamentSetup[];
+  /** The active tournament instance. */
   tournament: Tournament;
 }

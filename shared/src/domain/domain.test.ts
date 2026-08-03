@@ -48,7 +48,8 @@ describe('derived', () => {
     anon: number | null = null,
     accounting: { entries?: number; rebuys?: number; addOns?: number } = {},
   ): Tournament => ({
-    id: 'x', name: 't', blindStructureId: null, prizeStructureId: null, stakes, anonymousCount: anon,
+    id: 'x', name: 't', status: 'running', format: { rebuys: 'rebuy', bounty: 'none' },
+    blindStructureId: null, prizeStructureId: null, stakes, anonymousCount: anon,
     anonEntries: accounting.entries ?? 0, anonRebuys: accounting.rebuys ?? 0, anonAddOns: accounting.addOns ?? 0,
     players, clock: { levelIndex: 0, running: false, levelRemainingMs: 0, totalElapsedMs: 0, anchorEpochMs: 0 },
     seating: { maxPerTable: 9, tables: [] },

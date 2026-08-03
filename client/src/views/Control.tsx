@@ -15,12 +15,14 @@ import { useTick } from '../hooks.js';
 import { activeLevels, chips as fmtChips, money } from '../selectors.js';
 import { TabModals, TABS, type TabName } from '../components/TabModals.js';
 import { RestoreModal } from '../components/RestoreModal.js';
+import { TournamentSettings } from '../components/TournamentSettings.js';
 
 export function Control() {
   const db = useDB();
   const send = useSend();
   const [openTab, setOpenTab] = useState<TabName | null>(null);
   const [showRestore, setShowRestore] = useState(false);
+  const [showTournament, setShowTournament] = useState(false);
   useTick(250);
 
   if (!db) return <div className="loading">Connecting…</div>;
@@ -80,10 +82,14 @@ export function Control() {
         ))}
       </div>
 
-      <button className="cbtn restore-link" onClick={() => setShowRestore(true)}>⤺ Restore a snapshot</button>
+      <div className="ctrl-grid">
+        <button className="cbtn" onClick={() => setShowTournament(true)}>⚙ Tournament</button>
+        <button className="cbtn" onClick={() => setShowRestore(true)}>⤺ Restore</button>
+      </div>
 
       <TabModals open={openTab} onClose={() => setOpenTab(null)} db={db} />
       {showRestore && <RestoreModal onClose={() => setShowRestore(false)} />}
+      {showTournament && <TournamentSettings onClose={() => setShowTournament(false)} db={db} />}
     </div>
   );
 }

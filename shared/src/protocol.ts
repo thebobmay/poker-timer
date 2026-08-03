@@ -3,7 +3,7 @@
 // `ServerMessage`s to every connected client. Adding a feature = add a command
 // variant here + a handler on the server. This is the extensibility backbone.
 
-import type { BlindStructure, DB, Level, PrizeStructure, SeatMove, Stakes, TournamentPlayer } from './types.js';
+import type { BlindStructure, DB, Format, Level, PrizeStructure, SeatMove, Stakes, TournamentPlayer, TournamentSetup } from './types.js';
 
 // ---------------------------------------------------------------------------
 // Commands: client -> server
@@ -53,7 +53,16 @@ export type Command =
   | { type: 'seating/clear' }
   // Tournament meta
   | { type: 'tournament/rename'; name: string }
-  | { type: 'tournament/reset' };
+  | { type: 'tournament/reset' }
+  // Tournament lifecycle + format
+  | { type: 'tournament/createNew'; setupId?: string } // fresh instance (archives current if real)
+  | { type: 'tournament/start' } // setup -> running
+  | { type: 'tournament/end' } // running -> complete, archives it
+  | { type: 'tournament/setFormat'; format: Format }
+  // Saved tournament setups (templates)
+  | { type: 'setup/save'; setup: TournamentSetup } // create or update by id
+  | { type: 'setup/delete'; id: string }
+  | { type: 'setup/apply'; id: string }; // load a setup's config into the current tournament
 
 export type CommandType = Command['type'];
 

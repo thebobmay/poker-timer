@@ -3,6 +3,7 @@ dist/
 sea-prep.blob
 server/public/
 server/data/db.json
+server/data/archive.json
 server/data/backups/
 *.log
 .DS_Store

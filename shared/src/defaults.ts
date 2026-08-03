@@ -1,8 +1,13 @@
 // Factory helpers and seeded default data so the app is usable out of the box
 // (approved default: a sensible blind structure + prize split). See CLAUDE.md.
 
-import type { AppSettings, BlindStructure, ClockState, DB, Level, PrizeStructure, Stakes, Tournament } from './types.js';
+import type { AppSettings, BlindStructure, ClockState, DB, Format, Level, PrizeStructure, Stakes, Tournament } from './types.js';
 import { levelDurationMs } from './domain/clock.js';
+
+/** Default format: re-entry allowed, no bounty (matches v1 behavior). */
+export function defaultFormat(): Format {
+  return { rebuys: 'rebuy', bounty: 'none' };
+}
 
 /** Default buy-in / rebuy / add-on amounts. Edit these in the Players tab. */
 export function defaultStakes(): Stakes {
@@ -79,11 +84,17 @@ export function initialClock(firstLevel: Level | undefined): ClockState {
   };
 }
 
-export function newTournament(name = 'Tournament', stakes: Stakes = defaultStakes()): Tournament {
+export function newTournament(
+  name = 'Tournament',
+  stakes: Stakes = defaultStakes(),
+  format: Format = defaultFormat(),
+): Tournament {
   const blinds = defaultBlindStructure();
   return {
     id: newId(),
     name,
+    status: 'setup',
+    format: { ...format },
     blindStructureId: blinds.id,
     prizeStructureId: 'default-prizes',
     stakes: { ...stakes },
@@ -109,6 +120,7 @@ export function defaultDB(): DB {
     savedPlayers: [],
     blindStructures: [defaultBlindStructure()],
     prizeStructures: [defaultPrizeStructure()],
+    tournamentSetups: [],
     tournament: newTournament('My Tournament'),
   };
 }

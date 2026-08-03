@@ -20,6 +20,7 @@ import { activeLevels, activePrize, chips as fmtChips, money, ORDINALS } from '.
 import { TabModals, TABS, type TabName } from '../components/TabModals.js';
 import { ConnectModal } from '../components/ConnectModal.js';
 import { RestoreModal } from '../components/RestoreModal.js';
+import { TournamentSettings } from '../components/TournamentSettings.js';
 
 export function Display() {
   const db = useDB();
@@ -27,6 +28,7 @@ export function Display() {
   const [openTab, setOpenTab] = useState<TabName | null>(null);
   const [showConnect, setShowConnect] = useState(false);
   const [showRestore, setShowRestore] = useState(false);
+  const [showTournament, setShowTournament] = useState(false);
   const [fs, setFs] = useState(false);
   const [navHidden, setNavHidden] = useState(false);
   const [armed, setArmed] = useState(isArmed());
@@ -91,6 +93,7 @@ export function Display() {
           {t.anonymousCount == null && rebalanceKind(t.seating.tables, t.seating.maxPerTable) && (
             <button className="navlink seat-alert" onClick={() => setOpenTab('seating')}>⚖ Seating</button>
           )}
+          <button className="navlink" onClick={() => setShowTournament(true)}>⚙ Tournament</button>
           {TABS.map((tab) => (
             <button key={tab.key} className="navlink" onClick={() => setOpenTab(tab.key)}>{tab.label}</button>
           ))}
@@ -164,6 +167,7 @@ export function Display() {
       <TabModals open={openTab} onClose={() => setOpenTab(null)} db={db} />
       {showConnect && <ConnectModal onClose={() => setShowConnect(false)} />}
       {showRestore && <RestoreModal onClose={() => setShowRestore(false)} />}
+      {showTournament && <TournamentSettings onClose={() => setShowTournament(false)} db={db} />}
     </div>
   );
 }
